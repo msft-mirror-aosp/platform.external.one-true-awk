@@ -8,15 +8,19 @@ cc_defaults {
         "-Wno-missing-field-initializers",
         "-Wno-self-assign",
         "-Wno-unused-parameter",
+        // A loop to UCHAR_MAX in `b.c`.
+        "-Wno-sign-compare",
         // And one less harmless used with strtod(3) in `lex.c`.
         "-Wno-unused-result",
         // Also ignore harmless macro redefinitions: glibc 2.17 #defines dprintf
         // in stdio2.h, and this #defines it in awk.h
         "-Wno-macro-redefined",
     ],
-    yaccflags: [
-        "-y",
-    ],
+    yacc: {
+        flags: [
+            "-y",
+        ],
+    },
 }
 
 // TODO: we should actually rebuild awkgram.y and pass the output through maketab.

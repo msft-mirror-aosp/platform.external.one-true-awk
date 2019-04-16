@@ -30,7 +30,8 @@ CFLAGS = -O2
 #CC = gcc -Wall -g -Wwrite-strings
 #CC = gcc -O4 -Wall -pedantic -fno-strict-aliasing
 #CC = gcc -fprofile-arcs -ftest-coverage # then gcov f1.c; cat f1.c.gcov
-CC = gcc -g -Wall -pedantic 
+HOSTCC = gcc -g -Wall -pedantic 
+CC = $(HOSTCC)  # change this is cross-compiling.
 
 # yacc options.  pick one; this varies a lot by system.
 #YFLAGS = -d -S
@@ -67,10 +68,10 @@ y%.c y%.h:	awk.h proto.h awkgram.y
 ytab.h:	ytab.c
 
 proctab.c:	maketab
-	./maketab >proctab.c
+	./maketab ytab.h >proctab.c
 
 maketab:	ytab.h maketab.c
-	$(CC) $(CFLAGS) maketab.c -o maketab
+	$(HOSTCC) $(CFLAGS) maketab.c -o maketab
 
 bundle:
 	@cp ytab.h ytabh.bak
