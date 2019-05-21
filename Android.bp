@@ -16,9 +16,12 @@ cc_defaults {
         // in stdio2.h, and this #defines it in awk.h
         "-Wno-macro-redefined",
     ],
-    yaccflags: [
-        "-y",
-    ],
+    stl: "none",
+    yacc: {
+        flags: [
+            "-y",
+        ],
+    },
 }
 
 // TODO: we should actually rebuild awkgram.y and pass the output through maketab.
