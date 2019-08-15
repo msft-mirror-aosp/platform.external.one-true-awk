@@ -1,3 +1,30 @@
+2019-06-24         Arnold D. Robbins     <arnold@skeeve.com>
+
+	* makefile: Revise to take into account there is no more awktest.tar,
+	add targets 'check' and 'test', and also 'testclean' to clean up
+	after test run.  Have 'clean' and 'cleaner' depend upon 'testclean'.
+
+2019-06-23         Arnold D. Robbins     <arnold@skeeve.com>
+
+	* testdir: Extracted from awktest.tar and added to Git.
+	* awktest.tar: Removed.
+
+2019-06-06         Arnold D. Robbins     <arnold@skeeve.com>
+
+	* awk.1: Fix a typo, minor edits.
+
+2019-06-05         Arnold D. Robbins     <arnold@skeeve.com>
+
+	* b.c (relex): Count parentheses and treat umatched right paren
+	as a literal character.
+	* awktest.tar (testdir/T.re): Added a test case.
+	* main.c (version): Upated.
+
+2019-05-29         Arnold D. Robbins     <arnold@skeeve.com>
+
+	* lib.c (isclvar): Remove check for additional '=' after
+	first one. No longer needed.
+
 2019-01-26         Arnold D. Robbins     <arnold@skeeve.com>
 
 	* main.c (version): Updated.
