@@ -22,7 +22,7 @@ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
 THIS SOFTWARE.
 ****************************************************************/
 
-const char	*version = "version 20190617";
+const char	*version = "version 20190728";
 
 #define DEBUG
 #include <stdio.h>
@@ -69,8 +69,8 @@ int main(int argc, char *argv[])
 	setlocale(LC_NUMERIC, "C"); /* for parsing cmdline & prog */
 	cmdname = argv[0];
 	if (argc == 1) {
-		fprintf(stderr, 
-		  "usage: %s [-F fs] [-v var=value] [-f progfile | 'prog'] [file ...]\n", 
+		fprintf(stderr,
+		  "usage: %s [-F fs] [-v var=value] [-f progfile | 'prog'] [file ...]\n",
 		  cmdname);
 		exit(1);
 	}
@@ -78,7 +78,7 @@ int main(int argc, char *argv[])
 	/*signal(SIGSEGV, segvcatch); experiment */
 
 	srand_seed = 1;
-	srand(srand_seed);
+	srandom((unsigned long) srand_seed);
 
 	yyin = NULL;
 	symtab = makesymtab(NSYMTAB/NSYMTAB);
@@ -101,14 +101,14 @@ int main(int argc, char *argv[])
 		case 'f':	/* next argument is program filename */
 			if (argv[1][2] != 0) {  /* arg is -fsomething */
 				if (npfile >= MAX_PFILE - 1)
-					FATAL("too many -f options"); 
+					FATAL("too many -f options");
 				pfile[npfile++] = &argv[1][2];
 			} else {		/* arg is -f something */
 				argc--; argv++;
 				if (argc <= 1)
 					FATAL("no program filename");
 				if (npfile >= MAX_PFILE - 1)
-					FATAL("too many -f options"); 
+					FATAL("too many -f options");
 				pfile[npfile++] = argv[1];
 			}
 			break;

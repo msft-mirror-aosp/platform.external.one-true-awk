@@ -26,7 +26,7 @@ cc_defaults {
 
 // TODO: we should actually rebuild awkgram.y and pass the output through maketab.
 // For now we just rebuild the checked-in generated files.
-cc_binary {
+cc_binary_host {
     name: "awk-maketab",
     defaults: ["awk-flags"],
     srcs: ["maketab.c"]
