@@ -164,8 +164,8 @@ int gettok(char **pbuf, int *psz)	/* get next input token */
 int	word(char *);
 int	string(void);
 int	regexpr(void);
-int	sc	= 0;	/* 1 => return a } right now */
-int	reg	= 0;	/* 1 => return a REGEXPR now */
+bool	sc	= false;	/* true => return a } right now */
+bool	reg	= false;	/* true => return a REGEXPR now */
 
 int yylex(void)
 {
@@ -173,14 +173,14 @@ int yylex(void)
 	static char *buf = NULL;
 	static int bufsize = 5; /* BUG: setting this small causes core dump! */
 
-	if (buf == NULL && (buf = (char *) malloc(bufsize)) == NULL)
+	if (buf == NULL && (buf = malloc(bufsize)) == NULL)
 		FATAL( "out of space in yylex" );
 	if (sc) {
-		sc = 0;
+		sc = false;
 		RET('}');
 	}
 	if (reg) {
-		reg = 0;
+		reg = false;
 		return regexpr();
 	}
 	for (;;) {
@@ -327,7 +327,7 @@ int yylex(void)
 		case '}':
 			if (--bracecnt < 0)
 				SYNTAX( "extra }" );
-			sc = 1;
+			sc = true;
 			RET(';');
 		case ']':
 			if (--brackcnt < 0)
@@ -363,7 +363,7 @@ int string(void)
 	static char *buf = NULL;
 	static int bufsz = 500;
 
-	if (buf == NULL && (buf = (char *) malloc(bufsz)) == NULL)
+	if (buf == NULL && (buf = malloc(bufsz)) == NULL)
 		FATAL("out of space for strings");
 	for (bp = buf; (c = input()) != '"'; ) {
 		if (!adjbuf(&buf, &bufsz, bp-buf+2, 500, &bp, "string"))
@@ -461,9 +461,8 @@ int word(char *w)
 	int c, n;
 
 	n = binsearch(w, keywords, sizeof(keywords)/sizeof(keywords[0]));
-/* BUG: this ought to be inside the if; in theory could fault (daniel barrett) */
-	kp = keywords + n;
 	if (n != -1) {	/* found in table */
+		kp = keywords + n;
 		yylval.i = kp->sub;
 		switch (kp->type) {	/* special handling */
 		case BLTIN:
@@ -501,7 +500,7 @@ int word(char *w)
 
 void startreg(void)	/* next call to yylex will return a regular expression */
 {
-	reg = 1;
+	reg = true;
 }
 
 int regexpr(void)
@@ -511,7 +510,7 @@ int regexpr(void)
 	static int bufsz = 500;
 	char *bp;
 
-	if (buf == NULL && (buf = (char *) malloc(bufsz)) == NULL)
+	if (buf == NULL && (buf = malloc(bufsz)) == NULL)
 		FATAL("out of space for rex expr");
 	bp = buf;
 	for ( ; (c = input()) != '/' && c != 0; ) {
