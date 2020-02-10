@@ -29,18 +29,21 @@ THIS SOFTWARE.
 #include <errno.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <limits.h>
 #include "awk.h"
 #include "ytab.h"
 
+char	EMPTY[] = { '\0' };
 FILE	*infile	= NULL;
-char	*file	= "";
+char	*file	= EMPTY;
 char	*record;
 int	recsize	= RECSIZE;
 char	*fields;
 int	fieldssize = RECSIZE;
 
 Cell	**fldtab;	/* pointers to Cells */
-char	inputFS[100] = " ";
+static size_t	len_inputFS = 0;
+static char	*inputFS = NULL; /* FS at time of input, for field splitting */
 
 #define	MAXFLD	2
 int	nfields	= MAXFLD;	/* last allocated slot for $i */
@@ -52,8 +55,8 @@ int	lastfld	= 0;	/* last used field */
 int	argno	= 1;	/* current input argument number */
 extern	Awkfloat *ARGC;
 
-static Cell dollar0 = { OCELL, CFLD, NULL, "", 0.0, REC|STR|DONTFREE };
-static Cell dollar1 = { OCELL, CFLD, NULL, "", 0.0, FLD|STR|DONTFREE };
+static Cell dollar0 = { OCELL, CFLD, NULL, EMPTY, 0.0, REC|STR|DONTFREE };
+static Cell dollar1 = { OCELL, CFLD, NULL, EMPTY, 0.0, FLD|STR|DONTFREE };
 
 void recinit(unsigned int n)
 {
@@ -116,9 +119,17 @@ void initgetrec(void)
  */
 void savefs(void)
 {
-	if (strlen(getsval(fsloc)) >= sizeof (inputFS))
+	size_t len;
+	if ((len = strlen(getsval(fsloc))) < len_inputFS) {
+		strcpy(inputFS, *FS);	/* for subsequent field splitting */
+		return;
+	}
+
+	len_inputFS = len + 1;
+	inputFS = realloc(inputFS, len_inputFS);
+	if (inputFS == NULL)
 		FATAL("field separator %.10s... is too long", *FS);
-	strcpy(inputFS, *FS);
+	memcpy(inputFS, *FS, len_inputFS);
 }
 
 static bool firsttime = true;
@@ -333,14 +344,14 @@ void fldbld(void)	/* create fields from current record */
 		*fr = 0;
 	} else if ((sep = *inputFS) == 0) {		/* new: FS="" => 1 char/field */
 		for (i = 0; *r != '\0'; r += n) {
-			char buf[MB_CUR_MAX + 1];
+			char buf[MB_LEN_MAX + 1];
 
 			i++;
 			if (i > nfields)
 				growfldtab(i);
 			if (freeable(fldtab[i]))
 				xfree(fldtab[i]->sval);
-			n = mblen(r, MB_CUR_MAX);
+			n = mblen(r, MB_LEN_MAX);
 			if (n < 0)
 				n = 1;
 			memcpy(buf, r, n);
@@ -404,7 +415,7 @@ void cleanfld(int n1, int n2)	/* clean out fields n1 .. n2 inclusive */
 		p = fldtab[i];
 		if (freeable(p))
 			xfree(p->sval);
-		p->sval = "";
+		p->sval = EMPTY,
 		p->tval = FLD | STR | DONTFREE;
 	}
 }
