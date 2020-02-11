@@ -43,7 +43,7 @@ typedef struct Keyword {
 	int	type;
 } Keyword;
 
-Keyword keywords[] ={	/* keep sorted: binary searched */
+const Keyword keywords[] = {	/* keep sorted: binary searched */
 	{ "BEGIN",	XBEGIN,		XBEGIN },
 	{ "END",	XEND,		XEND },
 	{ "NF",		VARNF,		VARNF },
@@ -91,14 +91,14 @@ Keyword keywords[] ={	/* keep sorted: binary searched */
 
 #define	RET(x)	{ if(dbg)printf("lex %s\n", tokname(x)); return(x); }
 
-int peek(void)
+static int peek(void)
 {
 	int c = input();
 	unput(c);
 	return c;
 }
 
-int gettok(char **pbuf, int *psz)	/* get next input token */
+static int gettok(char **pbuf, int *psz)	/* get next input token */
 {
 	int c, retc;
 	char *buf = *pbuf;
@@ -164,8 +164,8 @@ int gettok(char **pbuf, int *psz)	/* get next input token */
 int	word(char *);
 int	string(void);
 int	regexpr(void);
-int	sc	= 0;	/* 1 => return a } right now */
-int	reg	= 0;	/* 1 => return a REGEXPR now */
+bool	sc	= false;	/* true => return a } right now */
+bool	reg	= false;	/* true => return a REGEXPR now */
 
 int yylex(void)
 {
@@ -173,14 +173,14 @@ int yylex(void)
 	static char *buf = NULL;
 	static int bufsize = 5; /* BUG: setting this small causes core dump! */
 
-	if (buf == NULL && (buf = (char *) malloc(bufsize)) == NULL)
+	if (buf == NULL && (buf = malloc(bufsize)) == NULL)
 		FATAL( "out of space in yylex" );
 	if (sc) {
-		sc = 0;
+		sc = false;
 		RET('}');
 	}
 	if (reg) {
-		reg = 0;
+		reg = false;
 		return regexpr();
 	}
 	for (;;) {
@@ -190,7 +190,9 @@ int yylex(void)
 		if (isalpha(c) || c == '_')
 			return word(buf);
 		if (isdigit(c)) {
-			yylval.cp = setsymtab(buf, tostring(buf), atof(buf), CON|NUM, symtab);
+			char *cp = tostring(buf);
+			yylval.cp = setsymtab(buf, cp, atof(buf), CON|NUM, symtab);
+			free(cp);
 			/* should this also have STR set? */
 			RET(NUMBER);
 		}
@@ -208,6 +210,11 @@ int yylex(void)
 			while ((c = input()) != '\n' && c != 0)
 				;
 			unput(c);
+			/*
+			 * Next line is a hack, itcompensates for
+			 * unput's treatment of \n.
+			 */
+			lineno++;
 			break;
 		case ';':
 			RET(';');
@@ -327,7 +334,7 @@ int yylex(void)
 		case '}':
 			if (--bracecnt < 0)
 				SYNTAX( "extra }" );
-			sc = 1;
+			sc = true;
 			RET(';');
 		case ']':
 			if (--brackcnt < 0)
@@ -363,7 +370,7 @@ int string(void)
 	static char *buf = NULL;
 	static int bufsz = 500;
 
-	if (buf == NULL && (buf = (char *) malloc(bufsz)) == NULL)
+	if (buf == NULL && (buf = malloc(bufsz)) == NULL)
 		FATAL("out of space for strings");
 	for (bp = buf; (c = input()) != '"'; ) {
 		if (!adjbuf(&buf, &bufsz, bp-buf+2, 500, &bp, "string"))
@@ -388,7 +395,7 @@ int string(void)
 			case 'r': *bp++ = '\r'; break;
 			case 'b': *bp++ = '\b'; break;
 			case 'v': *bp++ = '\v'; break;
-			case 'a': *bp++ = '\007'; break;
+			case 'a': *bp++ = '\a'; break;
 			case '\\': *bp++ = '\\'; break;
 
 			case '0': case '1': case '2': /* octal: \d \dd \ddd */
@@ -431,13 +438,14 @@ int string(void)
 	}
 	*bp = 0;
 	s = tostring(buf);
-	*bp++ = ' '; *bp++ = 0;
+	*bp++ = ' '; *bp++ = '\0';
 	yylval.cp = setsymtab(buf, s, 0.0, CON|STR|DONTFREE, symtab);
+	free(s);
 	RET(STRING);
 }
 
 
-int binsearch(char *w, Keyword *kp, int n)
+static int binsearch(char *w, const Keyword *kp, int n)
 {
 	int cond, low, mid, high;
 
@@ -457,13 +465,12 @@ int binsearch(char *w, Keyword *kp, int n)
 
 int word(char *w)
 {
-	Keyword *kp;
+	const Keyword *kp;
 	int c, n;
 
 	n = binsearch(w, keywords, sizeof(keywords)/sizeof(keywords[0]));
-/* BUG: this ought to be inside the if; in theory could fault (daniel barrett) */
-	kp = keywords + n;
 	if (n != -1) {	/* found in table */
+		kp = keywords + n;
 		yylval.i = kp->sub;
 		switch (kp->type) {	/* special handling */
 		case BLTIN:
@@ -501,7 +508,7 @@ int word(char *w)
 
 void startreg(void)	/* next call to yylex will return a regular expression */
 {
-	reg = 1;
+	reg = true;
 }
 
 int regexpr(void)
@@ -511,7 +518,7 @@ int regexpr(void)
 	static int bufsz = 500;
 	char *bp;
 
-	if (buf == NULL && (buf = (char *) malloc(bufsz)) == NULL)
+	if (buf == NULL && (buf = malloc(bufsz)) == NULL)
 		FATAL("out of space for rex expr");
 	bp = buf;
 	for ( ; (c = input()) != '/' && c != 0; ) {
@@ -570,6 +577,8 @@ int input(void)	/* get next lexical input character */
 
 void unput(int c)	/* put lexical character back on input */
 {
+	if (c == '\n')  
+		lineno--;
 	if (yysptr >= yysbuf + sizeof(yysbuf))
 		FATAL("pushed back too much: %.20s...", yysbuf);
 	*yysptr++ = c;
