@@ -180,7 +180,7 @@ fa *makedfa(const char *s, bool anchor)	/* returns dfa for reg expr s */
 }
 
 fa *mkdfa(const char *s, bool anchor)	/* does the real work of making a dfa */
-				/* anchor = 1 for anchored matches, else 0 */
+				/* anchor = true for anchored matches, else false */
 {
 	Node *p, *p1;
 	fa *f;
@@ -223,17 +223,17 @@ int makeinit(fa *f, bool anchor)
 	k = *(f->re[0].lfollow);
 	xfree(f->posns[2]);
 	f->posns[2] = intalloc(k + 1,  __func__);
-	for (i=0; i <= k; i++) {
+	for (i = 0; i <= k; i++) {
 		(f->posns[2])[i] = (f->re[0].lfollow)[i];
 	}
 	if ((f->posns[2])[1] == f->accept)
 		f->out[2] = 1;
-	for (i=0; i < NCHARS; i++)
+	for (i = 0; i < NCHARS; i++)
 		f->gototab[2][i] = 0;
 	f->curstat = cgoto(f, 2, HAT);
 	if (anchor) {
 		*f->posns[2] = k-1;	/* leave out position 0 */
-		for (i=0; i < k; i++) {
+		for (i = 0; i < k; i++) {
 			(f->posns[0])[i] = (f->posns[2])[i];
 		}
 
@@ -263,6 +263,8 @@ void penter(Node *p)	/* set up parent pointers and leaf indices */
 		parent(left(p)) = p;
 		parent(right(p)) = p;
 		break;
+	case ZERO:
+		break;
 	default:	/* can't happen */
 		FATAL("can't happen: unknown type %d in penter", type(p));
 		break;
@@ -277,6 +279,7 @@ void freetr(Node *p)	/* free parse tree */
 		xfree(p);
 		break;
 	UNARY
+	case ZERO:
 		freetr(left(p));
 		xfree(p);
 		break;
@@ -436,6 +439,8 @@ void cfoll(fa *f, Node *v)	/* enter follow set of each leaf of vertex v into lfo
 		cfoll(f,left(v));
 		cfoll(f,right(v));
 		break;
+	case ZERO:
+		break;
 	default:	/* can't happen */
 		FATAL("can't happen: unknown type %d in cfoll", type(v));
 	}
@@ -463,9 +468,10 @@ int first(Node *p)	/* collects initially active leaves of p into setvec */
 		}
 		if (type(p) == CCL && (*(char *) right(p)) == '\0')
 			return(0);		/* empty CCL */
-		else return(1);
+		return(1);
 	case PLUS:
-		if (first(left(p)) == 0) return(0);
+		if (first(left(p)) == 0)
+			return(0);
 		return(1);
 	case STAR:
 	case QUEST:
@@ -478,6 +484,8 @@ int first(Node *p)	/* collects initially active leaves of p into setvec */
 		b = first(right(p));
 		if (first(left(p)) == 0 || b == 0) return(0);
 		return(1);
+	case ZERO:
+		return 0;
 	}
 	FATAL("can't happen: unknown type %d in first", type(p));	/* can't happen */
 	return(-1);
@@ -714,7 +722,7 @@ bool fnematch(fa *pfa, FILE *f, char **pbuf, int *pbufsize, int quantum)
 			if (buf[--k] && ungetc(buf[k], f) == EOF)
 				FATAL("unable to ungetc '%c'", buf[k]);
 		while (k > i + patlen);
-		buf[k] = 0;
+		buf[k] = '\0';
 		return true;
 	}
 	else
@@ -837,6 +845,9 @@ Node *unary(Node *np)
 	case QUEST:
 		rtok = relex();
 		return (unary(op2(QUEST, np, NIL)));
+	case ZERO:
+		rtok = relex();
+		return (unary(op2(ZERO, np, NIL)));
 	default:
 		return (np);
 	}
@@ -872,7 +883,7 @@ int (xisblank)(int c)
 
 #endif
 
-struct charclass {
+static const struct charclass {
 	const char *cc_name;
 	int cc_namelen;
 	int (*cc_func)(int);
@@ -935,7 +946,7 @@ replace_repeat(const uschar *reptok, int reptoklen, const uschar *atom,
 		buf[j++] = '(';
 		buf[j++] = ')';
 	}
-	for (i=1; i < firstnum; i++) {		/* copy x reps 	*/
+	for (i = 1; i < firstnum; i++) {	/* copy x reps 	*/
 		memcpy(&buf[j], atom, atomlen);
 		j += atomlen;
 	}
@@ -944,7 +955,7 @@ replace_repeat(const uschar *reptok, int reptoklen, const uschar *atom,
 	} else if (special_case == REPEAT_WITH_Q) {
 		if (init_q)
 			buf[j++] = '?';
-		for (i = 0; i < n_q_reps; i++) {	/* copy x? reps */
+		for (i = init_q; i < n_q_reps; i++) {	/* copy x? reps */
 			memcpy(&buf[j], atom, atomlen);
 			j += atomlen;
 			buf[j++] = '?';
@@ -1016,7 +1027,7 @@ int relex(void)		/* lexical analyzer for reparse */
 	static uschar *buf = NULL;
 	static int bufsz = 100;
 	uschar *bp;
-	struct charclass *cc;
+	const struct charclass *cc;
 	int i;
 	int num, m;
 	bool commafound, digitfound;
@@ -1166,15 +1177,17 @@ rescan:
 				if (commafound) {
 					if (digitfound) { /* {n,m} */
 						m = num;
-						if (m<n)
+						if (m < n)
 							FATAL("illegal repetition expression: class %.20s",
 								lastre);
-						if ((n==0) && (m==1)) {
+						if (n == 0 && m == 1) {
 							return QUEST;
 						}
 					} else {	/* {n,} */
-						if (n==0) return STAR;
-						if (n==1) return PLUS;
+						if (n == 0)
+							return STAR;
+						else if (n == 1)
+							return PLUS;
 					}
 				} else {
 					if (digitfound) { /* {n} same as {n,n} */
@@ -1187,8 +1200,8 @@ rescan:
 				}
 				if (repeat(starttok, prestr-starttok, lastatom,
 					   startreptok - lastatom, n, m) > 0) {
-					if ((n==0) && (m==0)) {
-						return EMPTYRE;
+					if (n == 0 && m == 0) {
+						return ZERO;
 					}
 					/* must rescan input for next token */
 					goto rescan;
@@ -1313,7 +1326,7 @@ void freefa(fa *f)	/* free a finite automaton */
 	for (i = 0; i <= f->accept; i++) {
 		xfree(f->re[i].lfollow);
 		if (f->re[i].ltype == CCL || f->re[i].ltype == NCCL)
-			xfree((f->re[i].lval.np));
+			xfree(f->re[i].lval.np);
 	}
 	xfree(f->restr);
 	xfree(f->out);
