@@ -32,7 +32,7 @@ typedef	unsigned char uschar;
 
 #define	xfree(a)	{ if ((a) != NULL) { free((void *) (a)); (a) = NULL; } }
 
-#define	NN(p)	((p) ? (p) : "(null)")	/* guaranteed non-null for dprintf
+#define	NN(p)	((p) ? (p) : "(null)")	/* guaranteed non-null for dprintf 
 */
 #define	DEBUG
 #ifdef	DEBUG
@@ -105,7 +105,6 @@ extern Cell	*rsloc;		/* RS */
 extern Cell	*rstartloc;	/* RSTART */
 extern Cell	*rlengthloc;	/* RLENGTH */
 extern Cell	*subseploc;	/* SUBSEP */
-extern Cell	*symtabloc;	/* SYMTAB */
 
 /* Cell.tval values: */
 #define	NUM	01	/* number value is valid */
@@ -162,7 +161,7 @@ extern Node	*nullnode;
 #define CCOPY	6
 #define CCON	5
 #define CTEMP	4
-#define CNAME	3
+#define CNAME	3 
 #define CVAR	2
 #define CFLD	1
 #define	CUNK	0

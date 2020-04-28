@@ -62,7 +62,6 @@ void recinit(unsigned int n)
 	  || (fldtab = (Cell **) malloc((nfields+2) * sizeof(Cell *))) == NULL
 	  || (fldtab[0] = (Cell *) malloc(sizeof(Cell))) == NULL )
 		FATAL("out of space for $0 and fields");
-	*record = '\0';
 	*fldtab[0] = dollar0;
 	fldtab[0]->sval = record;
 	fldtab[0]->nval = tostring("0");
@@ -105,22 +104,6 @@ void initgetrec(void)
 	infile = stdin;		/* no filenames, so use stdin */
 }
 
-/*
- * POSIX specifies that fields are supposed to be evaluated as if they were
- * split using the value of FS at the time that the record's value ($0) was
- * read.
- *
- * Since field-splitting is done lazily, we save the current value of FS
- * whenever a new record is read in (implicitly or via getline), or when
- * a new value is assigned to $0.
- */
-void savefs(void)
-{
-	if (strlen(getsval(fsloc)) >= sizeof (inputFS))
-		FATAL("field separator %.10s... is too long", *FS);
-	strcpy(inputFS, *FS);
-}
-
 static int firsttime = 1;
 
 int getrec(char **pbuf, int *pbufsize, int isrecord)	/* get next input record */
@@ -139,7 +122,6 @@ int getrec(char **pbuf, int *pbufsize, int isrecord)	/* get next input record */
 	if (isrecord) {
 		donefld = 0;
 		donerec = 1;
-		savefs();
 	}
 	saveb0 = buf[0];
 	buf[0] = 0;
@@ -209,6 +191,10 @@ int readrec(char **pbuf, int *pbufsize, FILE *inf)	/* read one record into buf *
 	int bufsize = *pbufsize;
 	char *rs = getsval(rsloc);
 
+	if (strlen(getsval(fsloc)) >= sizeof (inputFS))
+		FATAL("field separator %.10s... is too long", *FS);
+	/*fflush(stdout); avoids some buffering problem but makes it 25% slower*/
+	strcpy(inputFS, *FS);	/* for subsequent field splitting */
 	if ((sep = *rs) == 0) {
 		sep = '\n';
 		while ((c=getc(inf)) == '\n' && c != EOF)	/* skip leading \n's */
@@ -298,6 +284,9 @@ void fldbld(void)	/* create fields from current record */
 	}
 	fr = fields;
 	i = 0;	/* number of fields accumulated here */
+	if (strlen(getsval(fsloc)) >= sizeof (inputFS))
+		FATAL("field separator %.10s... is too long", *FS);
+	strcpy(inputFS, *FS);
 	if (strlen(inputFS) > 1) {	/* it's a regular expression */
 		i = refldbld(r, inputFS);
 	} else if ((sep = *inputFS) == ' ') {	/* default whitespace */
@@ -488,7 +477,7 @@ int refldbld(const char *rec, const char *fs)	/* build fields from reg expr in F
 			break;
 		}
 	}
-	return i;
+	return i;		
 }
 
 void recbld(void)	/* create $0 from $1..$NF if necessary */
@@ -647,7 +636,7 @@ void eprint(void)	/* try to print context around error */
 	static int been_here = 0;
 	extern char ebuf[], *ep;
 
-	if (compile_time == 2 || compile_time == 0 || been_here++ > 0 || ebuf == ep)
+	if (compile_time == 2 || compile_time == 0 || been_here++ > 0)
 		return;
 	if (ebuf == ep)
 		return;
@@ -714,7 +703,7 @@ int isclvar(const char *s)	/* is s of form var=something ? */
 	for ( ; *s; s++)
 		if (!(isalnum((uschar) *s) || *s == '_'))
 			break;
-	return *s == '=' && s > os;
+	return *s == '=' && s > os && *(s+1) != '=';
 }
 
 /* strtod is supposed to be a proper test of what's a valid number */
