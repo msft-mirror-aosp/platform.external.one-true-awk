@@ -26,9 +26,9 @@ cc_defaults {
 }
 
 genrule {
-    name: "ytab.c",
-    cmd: "M4=$(location m4) $(location bison) -y --output=$(genDir)/ytab.c $(in)",
-    out: ["ytab.c"],
+    name: "awkgram.tab.c",
+    cmd: "M4=$(location m4) $(location bison) -y --output=$(genDir)/awkgram.tab.c $(in)",
+    out: ["awkgram.tab.c"],
     srcs: ["awkgram.y"],
     tools: [
         "bison",
@@ -37,9 +37,9 @@ genrule {
 }
 
 genrule {
-    name: "ytab.h",
-    cmd: "M4=$(location m4) $(location bison) -y --defines=$(genDir)/ytab.h --output=$(genDir)/ytab.c $(in)",
-    out: ["ytab.h"],
+    name: "awkgram.tab.h",
+    cmd: "M4=$(location m4) $(location bison) -y --defines=$(genDir)/awkgram.tab.h --output=$(genDir)/awkgram.tab.c $(in)",
+    out: ["awkgram.tab.h"],
     srcs: ["awkgram.y"],
     tools: [
         "bison",
@@ -52,20 +52,20 @@ genrule {
     tools: ["awk-maketab"],
     cmd: "$(location awk-maketab) $(in) > $(genDir)/proctab.c",
     out: ["proctab.c"],
-    srcs: [":ytab.h"],
+    srcs: [":awkgram.tab.h"],
 }
 
 cc_binary_host {
     name: "awk-maketab",
     defaults: ["awk-flags"],
-    generated_headers: ["ytab.h"],
+    generated_headers: ["awkgram.tab.h"],
     srcs: ["maketab.c"],
 }
 
 cc_defaults {
     name: "awk-defaults",
     defaults: ["awk-flags"],
-    generated_headers: ["ytab.h"],
+    generated_headers: ["awkgram.tab.h"],
     srcs: [
         "b.c",
         "lex.c",
@@ -75,7 +75,7 @@ cc_defaults {
         ":proctab.c",
         "run.c",
         "tran.c",
-        ":ytab.c",
+        ":awkgram.tab.c",
     ],
 }
 
