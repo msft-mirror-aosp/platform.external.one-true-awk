@@ -25,28 +25,57 @@ cc_defaults {
     },
 }
 
-// TODO: we should actually rebuild awkgram.y and pass the output through maketab.
-// For now we just rebuild the checked-in generated files.
+genrule {
+    name: "awkgram.tab.c",
+    cmd: "M4=$(location m4) $(location bison) -y --no-lines --output=$(genDir)/awkgram.tab.c $(in)",
+    out: ["awkgram.tab.c"],
+    srcs: ["awkgram.y"],
+    tools: [
+        "bison",
+        "m4",
+    ],
+}
+
+genrule {
+    name: "awkgram.tab.h",
+    cmd: "M4=$(location m4) $(location bison) -y --no-lines --defines=$(genDir)/awkgram.tab.h --output=$(genDir)/awkgram.tab.c $(in)",
+    out: ["awkgram.tab.h"],
+    srcs: ["awkgram.y"],
+    tools: [
+        "bison",
+        "m4",
+    ],
+}
+
+genrule {
+    name: "proctab.c",
+    tools: ["awk-maketab"],
+    cmd: "$(location awk-maketab) $(in) > $(genDir)/proctab.c",
+    out: ["proctab.c"],
+    srcs: [":awkgram.tab.h"],
+}
+
 cc_binary_host {
     name: "awk-maketab",
     defaults: ["awk-flags"],
-    srcs: ["maketab.c"]
+    generated_headers: ["awkgram.tab.h"],
+    srcs: ["maketab.c"],
 }
 
 cc_defaults {
     name: "awk-defaults",
     defaults: ["awk-flags"],
-
+    generated_headers: ["awkgram.tab.h"],
     srcs: [
         "b.c",
         "lex.c",
         "lib.c",
         "main.c",
         "parse.c",
-        "proctab.c",
+        ":proctab.c",
         "run.c",
         "tran.c",
-        "ytab.c",
+        ":awkgram.tab.c",
     ],
 }
 
