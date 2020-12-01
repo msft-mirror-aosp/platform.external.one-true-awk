@@ -5,11 +5,11 @@ third_party {
     type: GIT
     value: "https://github.com/onetrueawk/awk.git"
   }
-  version: "3b42cfaf73fbe63c1332f9cf2c8e4d90ab686f05"
+  version: "a2a41a8e359dca5295c43dc2c2408094b96c3e0c"
   license_type: NOTICE
   last_upgrade_date {
     year: 2020
-    month: 10
-    day: 28
+    month: 11
+    day: 30
   }
 }
