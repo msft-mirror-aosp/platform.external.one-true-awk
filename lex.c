@@ -173,7 +173,7 @@ int yylex(void)
 	static char *buf = NULL;
 	static int bufsize = 5; /* BUG: setting this small causes core dump! */
 
-	if (buf == NULL && (buf = malloc(bufsize)) == NULL)
+	if (buf == NULL && (buf = (char *) malloc(bufsize)) == NULL)
 		FATAL( "out of space in yylex" );
 	if (sc) {
 		sc = false;
@@ -191,7 +191,12 @@ int yylex(void)
 			return word(buf);
 		if (isdigit(c)) {
 			char *cp = tostring(buf);
-			yylval.cp = setsymtab(buf, cp, atof(buf), CON|NUM, symtab);
+			double result;
+
+			if (is_number(cp, & result))
+				yylval.cp = setsymtab(buf, cp, result, CON|NUM, symtab);
+			else
+				yylval.cp = setsymtab(buf, cp, 0.0, STR, symtab);
 			free(cp);
 			/* should this also have STR set? */
 			RET(NUMBER);
@@ -370,7 +375,7 @@ int string(void)
 	static char *buf = NULL;
 	static int bufsz = 500;
 
-	if (buf == NULL && (buf = malloc(bufsz)) == NULL)
+	if (buf == NULL && (buf = (char *) malloc(bufsz)) == NULL)
 		FATAL("out of space for strings");
 	for (bp = buf; (c = input()) != '"'; ) {
 		if (!adjbuf(&buf, &bufsz, bp-buf+2, 500, &bp, "string"))
@@ -519,7 +524,7 @@ int regexpr(void)
 	static int bufsz = 500;
 	char *bp;
 
-	if (buf == NULL && (buf = malloc(bufsz)) == NULL)
+	if (buf == NULL && (buf = (char *) malloc(bufsz)) == NULL)
 		FATAL("out of space for rex expr");
 	bp = buf;
 	for ( ; (c = input()) != '/' && c != 0; ) {
