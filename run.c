@@ -447,15 +447,13 @@ Cell *awkgetline(Node **a, int n)	/* get next line from specific input */
 			n = getrec(&record, &recsize, true);
 		else {			/* getline var */
 			n = getrec(&buf, &bufsize, false);
-			if (n > 0) {
-				x = execute(a[0]);
-				setsval(x, buf);
-				if (is_number(x->sval, & result)) {
-					x->fval = result;
-					x->tval |= NUM;
-				}
-				tempfree(x);
+			x = execute(a[0]);
+			setsval(x, buf);
+			if (is_number(x->sval, & result)) {
+				x->fval = result;
+				x->tval |= NUM;
 			}
+			tempfree(x);
 		}
 	}
 	setfval(r, (Awkfloat) n);
@@ -1860,8 +1858,8 @@ const char *filename(FILE *fp)
 	return "???";
 }
 
-Cell *closefile(Node **a, int n)
-{
+ Cell *closefile(Node **a, int n)
+ {
  	Cell *x;
 	size_t i;
 	bool stat;
@@ -1872,15 +1870,8 @@ Cell *closefile(Node **a, int n)
  	for (i = 0; i < nfiles; i++) {
 		if (!files[i].fname || strcmp(x->sval, files[i].fname) != 0)
 			continue;
-		if (files[i].mode == GT || files[i].mode == '|')
-			fflush(files[i].fp);
-		if (ferror(files[i].fp)) {
-			if ((files[i].mode == GT && files[i].fp != stderr)
-			  || files[i].mode == '|')
-				FATAL("write error on %s", files[i].fname);
-			else
-				WARNING("i/o error occurred on %s", files[i].fname);
-		}
+		if (ferror(files[i].fp))
+			FATAL("i/o error occurred on %s", files[i].fname);
 		if (files[i].fp == stdin || files[i].fp == stdout ||
 		    files[i].fp == stderr)
 			stat = freopen("/dev/null", "r+", files[i].fp) == NULL;
@@ -1889,7 +1880,7 @@ Cell *closefile(Node **a, int n)
 		else
 			stat = fclose(files[i].fp) == EOF;
 		if (stat)
-			WARNING("i/o error occurred closing %s", files[i].fname);
+			FATAL("i/o error occurred closing %s", files[i].fname);
 		if (i > 2)	/* don't do /dev/std... */
 			xfree(files[i].fname);
 		files[i].fname = NULL;	/* watch out for ref thru this */
@@ -1900,7 +1891,7 @@ Cell *closefile(Node **a, int n)
  	x = gettemp();
 	setfval(x, (Awkfloat) (stat ? -1 : 0));
  	return(x);
-}
+ }
 
 void closeall(void)
 {
@@ -1910,24 +1901,18 @@ void closeall(void)
 	for (i = 0; i < nfiles; i++) {
 		if (! files[i].fp)
 			continue;
-		if (files[i].mode == GT || files[i].mode == '|')
-			fflush(files[i].fp);
-		if (ferror(files[i].fp)) {
-			if ((files[i].mode == GT && files[i].fp != stderr)
-			  || files[i].mode == '|')
-				FATAL("write error on %s", files[i].fname);
-			else
-				WARNING("i/o error occurred on %s", files[i].fname);
-		}
-		if (files[i].fp == stdin || files[i].fp == stdout ||
-		    files[i].fp == stderr)
+		if (ferror(files[i].fp))
+			FATAL( "i/o error occurred on %s", files[i].fname );
+		if (files[i].fp == stdin)
 			continue;
 		if (files[i].mode == '|' || files[i].mode == LE)
 			stat = pclose(files[i].fp) == -1;
+		else if (files[i].fp == stdout || files[i].fp == stderr)
+			stat = fflush(files[i].fp) == EOF;
 		else
 			stat = fclose(files[i].fp) == EOF;
 		if (stat)
-			WARNING("i/o error occurred while closing %s", files[i].fname);
+			FATAL( "i/o error occurred while closing %s", files[i].fname );
 	}
 }
 
