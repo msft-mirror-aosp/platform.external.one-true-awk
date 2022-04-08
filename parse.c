@@ -27,13 +27,13 @@ THIS SOFTWARE.
 #include <string.h>
 #include <stdlib.h>
 #include "awk.h"
-#include "awkgram.tab.h"
+#include "ytab.h"
 
 Node *nodealloc(int n)
 {
 	Node *x;
 
-	x = (Node *) malloc(sizeof(*x) + (n-1) * sizeof(x));
+	x = malloc(sizeof(*x) + (n-1) * sizeof(x));
 	if (x == NULL)
 		FATAL("out of space in nodealloc");
 	x->nnext = NULL;
@@ -250,7 +250,7 @@ void defn(Cell *v, Node *vl, Node *st)	/* turn on FCN bit in definition, */
 	for (p = vl; p; p = p->nnext)
 		n++;
 	v->fval = n;
-	DPRINTF("defining func %s (%d args)\n", v->nval, n);
+	dprintf( ("defining func %s (%d args)\n", v->nval, n) );
 }
 
 int isarg(const char *s)		/* is s in argument list for current function? */

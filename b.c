@@ -32,7 +32,7 @@ THIS SOFTWARE.
 #include <string.h>
 #include <stdlib.h>
 #include "awk.h"
-#include "awkgram.tab.h"
+#include "ytab.h"
 
 #define MAXLIN 22
 
@@ -83,7 +83,7 @@ int	nfatab	= 0;	/* entries in fatab */
 static int *
 intalloc(size_t n, const char *f)
 {
-	int *p = (int *) calloc(n, sizeof(int));
+	void *p = calloc(n, sizeof(int));
 	if (p == NULL)
 		overflo(f);
 	return p;
@@ -96,8 +96,8 @@ resizesetvec(const char *f)
 		maxsetvec = MAXLIN;
 	else
 		maxsetvec *= 4;
-	setvec = (int *) realloc(setvec, maxsetvec * sizeof(*setvec));
-	tmpset = (int *) realloc(tmpset, maxsetvec * sizeof(*tmpset));
+	setvec = realloc(setvec, maxsetvec * sizeof(*setvec));
+	tmpset = realloc(tmpset, maxsetvec * sizeof(*tmpset));
 	if (setvec == NULL || tmpset == NULL)
 		overflo(f);
 }
@@ -105,9 +105,7 @@ resizesetvec(const char *f)
 static void
 resize_state(fa *f, int state)
 {
-	unsigned int **p;
-	uschar *p2;
-	int **p3;
+	void *p;
 	int i, new_count;
 
 	if (++state < f->state_count)
@@ -115,23 +113,23 @@ resize_state(fa *f, int state)
 
 	new_count = state + 10; /* needs to be tuned */
 
-	p = (unsigned int **) realloc(f->gototab, new_count * sizeof(f->gototab[0]));
+	p = realloc(f->gototab, new_count * sizeof(f->gototab[0]));
 	if (p == NULL)
 		goto out;
 	f->gototab = p;
 
-	p2 = (uschar *) realloc(f->out, new_count * sizeof(f->out[0]));
-	if (p2 == NULL)
+	p = realloc(f->out, new_count * sizeof(f->out[0]));
+	if (p == NULL)
 		goto out;
-	f->out = p2;
+	f->out = p;
 
-	p3 = (int **) realloc(f->posns, new_count * sizeof(f->posns[0]));
-	if (p3 == NULL)
+	p = realloc(f->posns, new_count * sizeof(f->posns[0]));
+	if (p == NULL)
 		goto out;
-	f->posns = p3;
+	f->posns = p;
 
 	for (i = f->state_count; i < new_count; ++i) {
-		f->gototab[i] = (unsigned int *) calloc(NCHARS, sizeof(**f->gototab));
+		f->gototab[i] = calloc(NCHARS, sizeof(**f->gototab));
 		if (f->gototab[i] == NULL)
 			goto out;
 		f->out[i]  = 0;
@@ -197,7 +195,7 @@ fa *mkdfa(const char *s, bool anchor)	/* does the real work of making a dfa */
 
 	poscnt = 0;
 	penter(p1);	/* enter parent pointers and leaf indices */
-	if ((f = (fa *) calloc(1, sizeof(fa) + poscnt * sizeof(rrow))) == NULL)
+	if ((f = calloc(1, sizeof(fa) + poscnt * sizeof(rrow))) == NULL)
 		overflo(__func__);
 	f->accept = poscnt-1;	/* penter has computed number of positions in re */
 	cfoll(f, p1);	/* set up follow sets */
@@ -367,7 +365,7 @@ char *cclenter(const char *argp)	/* add a character class */
 	static int bufsz = 100;
 
 	op = p;
-	if (buf == NULL && (buf = (uschar *) malloc(bufsz)) == NULL)
+	if (buf == NULL && (buf = malloc(bufsz)) == NULL)
 		FATAL("out of space for character class [%.10s...] 1", p);
 	bp = buf;
 	for (i = 0; (c = *p++) != 0; ) {
@@ -399,7 +397,7 @@ char *cclenter(const char *argp)	/* add a character class */
 		i++;
 	}
 	*bp = 0;
-	DPRINTF("cclenter: in = |%s|, out = |%s|\n", op, buf);
+	dprintf( ("cclenter: in = |%s|, out = |%s|\n", op, buf) );
 	xfree(op);
 	return (char *) tostring((char *) buf);
 }
@@ -686,7 +684,7 @@ bool fnematch(fa *pfa, FILE *f, char **pbuf, int *pbufsize, int quantum)
 						FATAL("stream '%.30s...' too long", buf);
 				buf[k++] = (c = getc(f)) != EOF ? c : 0;
 			}
-			c = (uschar)buf[j];
+			c = buf[j];
 			/* assert(c < NCHARS); */
 
 			if ((ns = pfa->gototab[s][c]) != 0)
@@ -735,7 +733,7 @@ Node *reparse(const char *p)	/* parses regular expression pointed to by p */
 {			/* uses relex() to scan regular expression */
 	Node *np;
 
-	DPRINTF("reparse <%s>\n", p);
+	dprintf( ("reparse <%s>\n", p) );
 	lastre = prestr = (const uschar *) p;	/* prestr points to string to be parsed */
 	rtok = relex();
 	/* GNU compatibility: an empty regexp matches anything */
@@ -939,7 +937,7 @@ replace_repeat(const uschar *reptok, int reptoklen, const uschar *atom,
 	} else if (special_case == REPEAT_ZERO) {
 		size += 2;	/* just a null ERE: () */
 	}
-	if ((buf = (uschar *) malloc(size + 1)) == NULL)
+	if ((buf = malloc(size + 1)) == NULL)
 		FATAL("out of space in reg expr %.10s..", lastre);
 	memcpy(buf, basestr, prefix_length);	/* copy prefix	*/
 	j = prefix_length;
@@ -1067,7 +1065,7 @@ rescan:
 		rlxval = c;
 		return CHAR;
 	case '[':
-		if (buf == NULL && (buf = (uschar *) malloc(bufsz)) == NULL)
+		if (buf == NULL && (buf = malloc(bufsz)) == NULL)
 			FATAL("out of space in reg expr %.10s..", lastre);
 		bp = buf;
 		if (*prestr == '^') {
@@ -1107,12 +1105,6 @@ rescan:
 						if (!adjbuf((char **) &buf, &bufsz, bp-buf+1, 100, (char **) &bp, "relex2"))
 						    FATAL("out of space for reg expr %.10s...", lastre);
 						if (cc->cc_func(i)) {
-							/* escape backslash */
-							if (i == '\\') {
-								*bp++ = '\\';
-								n++;
-							}
-
 							*bp++ = i;
 							n++;
 						}

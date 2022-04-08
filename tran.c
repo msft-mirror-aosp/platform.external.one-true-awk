@@ -29,6 +29,7 @@ THIS SOFTWARE.
 #include <string.h>
 #include <stdlib.h>
 #include "awk.h"
+#include "ytab.h"
 
 #define	FULLTAB	2	/* rehash when table gets this x full */
 #define	GROWTAB 4	/* grow table by this factor */
@@ -129,11 +130,9 @@ void arginit(int ac, char **av)	/* set up ARGV and ARGC */
 	free(cp->sval);
 	cp->sval = (char *) ARGVtab;
 	for (i = 0; i < ac; i++) {
-		double result;
-
 		sprintf(temp, "%d", i);
-		if (is_number(*av, & result))
-			setsymtab(temp, *av, result, STR|NUM, ARGVtab);
+		if (is_number(*av))
+			setsymtab(temp, *av, atof(*av), STR|NUM, ARGVtab);
 		else
 			setsymtab(temp, *av, 0.0, STR, ARGVtab);
 		av++;
@@ -150,15 +149,13 @@ void envinit(char **envp)	/* set up ENVIRON variable */
 	free(cp->sval);
 	cp->sval = (char *) ENVtab;
 	for ( ; *envp; envp++) {
-		double result;
-
 		if ((p = strchr(*envp, '=')) == NULL)
 			continue;
 		if( p == *envp ) /* no left hand side name in env string */
 			continue;
 		*p++ = 0;	/* split into two strings at = */
-		if (is_number(p, & result))
-			setsymtab(*envp, p, result, STR|NUM, ENVtab);
+		if (is_number(p))
+			setsymtab(*envp, p, atof(p), STR|NUM, ENVtab);
 		else
 			setsymtab(*envp, p, 0.0, STR, ENVtab);
 		p[-1] = '=';	/* restore in case env is passed down to a shell */
@@ -170,8 +167,8 @@ Array *makesymtab(int n)	/* make a new symbol table */
 	Array *ap;
 	Cell **tp;
 
-	ap = (Array *) malloc(sizeof(*ap));
-	tp = (Cell **) calloc(n, sizeof(*tp));
+	ap = malloc(sizeof(*ap));
+	tp = calloc(n, sizeof(*tp));
 	if (ap == NULL || tp == NULL)
 		FATAL("out of space in makesymtab");
 	ap->nelem = 0;
@@ -237,11 +234,11 @@ Cell *setsymtab(const char *n, const char *s, Awkfloat f, unsigned t, Array *tp)
 	Cell *p;
 
 	if (n != NULL && (p = lookup(n, tp)) != NULL) {
-		DPRINTF("setsymtab found %p: n=%s s=\"%s\" f=%g t=%o\n",
-			(void*)p, NN(p->nval), NN(p->sval), p->fval, p->tval);
+		   dprintf( ("setsymtab found %p: n=%s s=\"%s\" f=%g t=%o\n",
+			(void*)p, NN(p->nval), NN(p->sval), p->fval, p->tval) );
 		return(p);
 	}
-	p = (Cell *) malloc(sizeof(*p));
+	p = malloc(sizeof(*p));
 	if (p == NULL)
 		FATAL("out of space for symbol table at %s", n);
 	p->nval = tostring(n);
@@ -256,8 +253,8 @@ Cell *setsymtab(const char *n, const char *s, Awkfloat f, unsigned t, Array *tp)
 	h = hash(n, tp->size);
 	p->cnext = tp->tab[h];
 	tp->tab[h] = p;
-	DPRINTF("setsymtab set %p: n=%s s=\"%s\" f=%g t=%o\n",
-		(void*)p, p->nval, p->sval, p->fval, p->tval);
+	   dprintf( ("setsymtab set %p: n=%s s=\"%s\" f=%g t=%o\n",
+		(void*)p, p->nval, p->sval, p->fval, p->tval) );
 	return(p);
 }
 
@@ -276,7 +273,7 @@ void rehash(Array *tp)	/* rehash items in small table into big one */
 	Cell *cp, *op, **np;
 
 	nsz = GROWTAB * tp->size;
-	np = (Cell **) calloc(nsz, sizeof(*np));
+	np = calloc(nsz, sizeof(*np));
 	if (np == NULL)		/* can't do it, but can keep running. */
 		return;		/* someone else will run out later. */
 	for (i = 0; i < tp->size; i++) {
@@ -316,11 +313,11 @@ Awkfloat setfval(Cell *vp, Awkfloat f)	/* set float val of a Cell */
 		fldno = atoi(vp->nval);
 		if (fldno > *NF)
 			newfld(fldno);
-		DPRINTF("setting field %d to %g\n", fldno, f);
+		   dprintf( ("setting field %d to %g\n", fldno, f) );
 	} else if (&vp->fval == NF) {
 		donerec = false;	/* mark $0 invalid */
 		setlastfld(f);
-		DPRINTF("setting NF to %g\n", f);
+		dprintf( ("setting NF to %g\n", f) );
 	} else if (isrec(vp)) {
 		donefld = false;	/* mark $1... invalid */
 		donerec = true;
@@ -336,7 +333,7 @@ Awkfloat setfval(Cell *vp, Awkfloat f)	/* set float val of a Cell */
 	vp->tval |= NUM;	/* mark number ok */
 	if (f == -0)  /* who would have thought this possible? */
 		f = 0;
-	DPRINTF("setfval %p: %s = %g, t=%o\n", (void*)vp, NN(vp->nval), f, vp->tval);
+	   dprintf( ("setfval %p: %s = %g, t=%o\n", (void*)vp, NN(vp->nval), f, vp->tval) );
 	return vp->fval = f;
 }
 
@@ -356,8 +353,8 @@ char *setsval(Cell *vp, const char *s)	/* set string val of a Cell */
 	int fldno;
 	Awkfloat f;
 
-	DPRINTF("starting setsval %p: %s = \"%s\", t=%o, r,f=%d,%d\n",
-		(void*)vp, NN(vp->nval), s, vp->tval, donerec, donefld);
+	   dprintf( ("starting setsval %p: %s = \"%s\", t=%o, r,f=%d,%d\n",
+		(void*)vp, NN(vp->nval), s, vp->tval, donerec, donefld) );
 	if ((vp->tval & (NUM | STR)) == 0)
 		funnyvar(vp, "assign to");
 	if (isfld(vp)) {
@@ -365,7 +362,7 @@ char *setsval(Cell *vp, const char *s)	/* set string val of a Cell */
 		fldno = atoi(vp->nval);
 		if (fldno > *NF)
 			newfld(fldno);
-		DPRINTF("setting field %d to %s (%p)\n", fldno, s, (const void*)s);
+		   dprintf( ("setting field %d to %s (%p)\n", fldno, s, s) );
 	} else if (isrec(vp)) {
 		donefld = false;	/* mark $1... invalid */
 		donerec = true;
@@ -381,14 +378,14 @@ char *setsval(Cell *vp, const char *s)	/* set string val of a Cell */
 	vp->tval |= STR;
 	vp->fmt = NULL;
 	setfree(vp);
-	DPRINTF("setsval %p: %s = \"%s (%p) \", t=%o r,f=%d,%d\n",
-		(void*)vp, NN(vp->nval), t, (void*)t, vp->tval, donerec, donefld);
+	   dprintf( ("setsval %p: %s = \"%s (%p) \", t=%o r,f=%d,%d\n",
+		(void*)vp, NN(vp->nval), t, t, vp->tval, donerec, donefld) );
 	vp->sval = t;
 	if (&vp->fval == NF) {
 		donerec = false;	/* mark $0 invalid */
 		f = getfval(vp);
 		setlastfld(f);
-		DPRINTF("setting NF to %g\n", f);
+		dprintf( ("setting NF to %g\n", f) );
 	}
 
 	return(vp->sval);
@@ -403,36 +400,19 @@ Awkfloat getfval(Cell *vp)	/* get float val of a Cell */
 	else if (isrec(vp) && !donerec)
 		recbld();
 	if (!isnum(vp)) {	/* not a number */
-		double fval;
-		bool no_trailing;
-
-		if (is_valid_number(vp->sval, true, & no_trailing, & fval)) {
-			vp->fval = fval;
-			if (no_trailing && !(vp->tval&CON))
-				vp->tval |= NUM;	/* make NUM only sparingly */
-		} else
-			vp->fval = 0.0;
+		vp->fval = atof(vp->sval);	/* best guess */
+		if (is_number(vp->sval) && !(vp->tval&CON))
+			vp->tval |= NUM;	/* make NUM only sparingly */
 	}
-	DPRINTF("getfval %p: %s = %g, t=%o\n",
-		(void*)vp, NN(vp->nval), vp->fval, vp->tval);
+	   dprintf( ("getfval %p: %s = %g, t=%o\n",
+		(void*)vp, NN(vp->nval), vp->fval, vp->tval) );
 	return(vp->fval);
-}
-
-static const char *get_inf_nan(double d)
-{
-	if (isinf(d)) {
-		return (d < 0 ? "-inf" : "+inf");
-	} else if (isnan(d)) {
-		return (signbit(d) != 0 ? "-nan" : "+nan");
-	} else
-		return NULL;
 }
 
 static char *get_str_val(Cell *vp, char **fmt)        /* get string val of a Cell */
 {
 	char s[256];
 	double dtemp;
-	const char *p;
 
 	if ((vp->tval & (NUM | STR)) == 0)
 		funnyvar(vp, "read value of");
@@ -469,9 +449,7 @@ static char *get_str_val(Cell *vp, char **fmt)        /* get string val of a Cel
 	{ \
 		if (freeable(vp)) \
 			xfree(vp->sval); \
-		if ((p = get_inf_nan(vp->fval)) != NULL) \
-			strcpy(s, p); \
-		else if (modf(vp->fval, &dtemp) == 0)	/* it's integral */ \
+		if (modf(vp->fval, &dtemp) == 0)	/* it's integral */ \
 			snprintf(s, sizeof (s), "%.30g", vp->fval); \
 		else \
 			snprintf(s, sizeof (s), *fmt, vp->fval); \
@@ -514,8 +492,8 @@ static char *get_str_val(Cell *vp, char **fmt)        /* get string val of a Cel
 		}
 	}
 done:
-	DPRINTF("getsval %p: %s = \"%s (%p)\", t=%o\n",
-		(void*)vp, NN(vp->nval), vp->sval, (void*)vp->sval, vp->tval);
+	   dprintf( ("getsval %p: %s = \"%s (%p)\", t=%o\n",
+		(void*)vp, NN(vp->nval), vp->sval, vp->sval, vp->tval) );
 	return(vp->sval);
 }
 
@@ -542,7 +520,7 @@ char *tostringN(const char *s, size_t n)	/* make a copy of string s */
 {
 	char *p;
 
-	p = (char *) malloc(n);
+	p = malloc(n);
 	if (p == NULL)
 		FATAL("out of space in tostring on %s", s);
 	strcpy(p, s);
@@ -556,13 +534,13 @@ Cell *catstr(Cell *a, Cell *b) /* concatenate a and b */
 	char *sa = getsval(a);
 	char *sb = getsval(b);
 	size_t l = strlen(sa) + strlen(sb) + 1;
-	p = (char *) malloc(l);
+	p = malloc(l);
 	if (p == NULL)
 		FATAL("out of space concatenating %s and %s", sa, sb);
 	snprintf(p, l, "%s%s", sa, sb);
 
 	l++;	// add room for ' '
-	char *newbuf = (char *) malloc(l);
+	char *newbuf = malloc(l);
 	if (newbuf == NULL)
 		FATAL("out of space concatenating %s and %s", sa, sb);
 	// See string() in lex.c; a string "xx" is stored in the symbol
@@ -581,7 +559,7 @@ char *qstring(const char *is, int delim)	/* collect string up to next delim */
 	const uschar *s = (const uschar *) is;
 	uschar *buf, *bp;
 
-	if ((buf = (uschar *) malloc(strlen(is)+3)) == NULL)
+	if ((buf = malloc(strlen(is)+3)) == NULL)
 		FATAL( "out of space in qstring(%s)", s);
 	for (bp = buf; (c = *s) != delim; s++) {
 		if (c == '\n')

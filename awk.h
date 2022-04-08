@@ -25,11 +25,6 @@ THIS SOFTWARE.
 #include <assert.h>
 #include <stdint.h>
 #include <stdbool.h>
-#if __STDC_VERSION__ <= 199901L
-#define noreturn
-#else
-#include <stdnoreturn.h>
-#endif
 
 typedef double	Awkfloat;
 
@@ -44,13 +39,14 @@ typedef	unsigned char uschar;
  */
 #define setptr(ptr, a)	(*(char *)(intptr_t)(ptr)) = (a)
 
-#define	NN(p)	((p) ? (p) : "(null)")	/* guaranteed non-null for DPRINTF
+#define	NN(p)	((p) ? (p) : "(null)")	/* guaranteed non-null for dprintf
 */
 #define	DEBUG
 #ifdef	DEBUG
-#	define	DPRINTF(...)	if (dbg) printf(__VA_ARGS__)
+			/* uses have to be doubly parenthesized */
+#	define	dprintf(x)	if (dbg) printf x
 #else
-#	define	DPRINTF(...)
+#	define	dprintf(x)
 #endif
 
 extern enum compile_states {
