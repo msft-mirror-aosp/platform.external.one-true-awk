@@ -971,8 +971,10 @@ int format(char **pbuf, int *pbufsize, const char *s, Node *a)	/* printf-like co
 	}
 	*p = '\0';
 	free(fmt);
-	for ( ; a; a = a->nnext)		/* evaluate any remaining args */
-		execute(a);
+	for ( ; a; a = a->nnext) {		/* evaluate any remaining args */
+		x = execute(a);
+		tempfree(x);
+	}
 	*pbuf = buf;
 	*pbufsize = bufsize;
 	return p - buf;
@@ -1195,8 +1197,10 @@ Cell *cat(Node **a, int q)	/* a[0] cat a[1] */
 
 	x = execute(a[0]);
 	n1 = strlen(getsval(x));
-	adjbuf(&s, &ssz, n1, recsize, 0, "cat1");
+	adjbuf(&s, &ssz, n1 + 1, recsize, 0, "cat1");
 	memcpy(s, x->sval, n1);
+
+	tempfree(x);
 
 	y = execute(a[1]);
 	n2 = strlen(getsval(y));
@@ -1204,7 +1208,6 @@ Cell *cat(Node **a, int q)	/* a[0] cat a[1] */
 	memcpy(s + n1, y->sval, n2);
 	s[n1 + n2] = '\0';
 
-	tempfree(x);
 	tempfree(y);
 
 	z = gettemp();
@@ -1266,6 +1269,7 @@ Cell *split(Node **a, int nnn)	/* split(a[0], a[1], a[2]); a[3] is type */
 
 	y = execute(a[0]);	/* source string */
 	origs = s = strdup(getsval(y));
+	tempfree(y);
 	arg3type = ptoi(a[3]);
 	if (a[2] == NULL)		/* fs string */
 		fs = getsval(fsloc);
@@ -1386,7 +1390,6 @@ Cell *split(Node **a, int nnn)	/* split(a[0], a[1], a[2]); a[3] is type */
 		}
 	}
 	tempfree(ap);
-	tempfree(y);
 	xfree(origs);
 	xfree(origfs);
 	x = gettemp();
@@ -1712,8 +1715,10 @@ Cell *bltin(Node **a, int n)	/* builtin functions. a[0] is type, a[1] is arg lis
 	setfval(x, u);
 	if (nextarg != NULL) {
 		WARNING("warning: function has too many arguments");
-		for ( ; nextarg; nextarg = nextarg->nnext)
-			execute(nextarg);
+		for ( ; nextarg; nextarg = nextarg->nnext) {
+			y = execute(nextarg);
+			tempfree(y);
+		}
 	}
 	return(x);
 }
