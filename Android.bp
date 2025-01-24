@@ -47,11 +47,6 @@ cc_defaults {
         "-Wno-macro-redefined",
     ],
     stl: "none",
-    yacc: {
-        flags: [
-            "-y",
-        ],
-    },
 }
 
 genrule {
